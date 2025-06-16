@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<meta property="og:image" content="https://i.top4top.io/p_3449gdglq1.jpg">  
+<head>
+  <meta property="og:image" content="https://i.top4top.io/p_3449gdglq1.jpg">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>نظام جرد الهواتف</title>
+  <style>
+    body{font-family:Arial, sans-serif;background:#f7f7f7;margin:0}
+    header{background:#007bff;color:#fff;padding:1rem;text-align:center}
+    nav{display:flex;justify-content:center;gap:1rem;background:#e0e0e0;padding:.5rem}
+    nav button{padding:.5rem 1rem;border:0;border-radius:5px;background:#007bff;color:#fff;cursor:pointer}
+    section{display:none;padding:1rem} section.active{display:block}
+    input,button{margin:.3rem 0;padding:.5rem;width:100%;box-sizing:border-box}
+    button[disabled]{opacity:.5;cursor:not-allowed}
+    table{width:100%;border-collapse:collapse;margin-top:1rem;background:#fff}
+    th,td{border:1px solid #999;padding:.5rem;text-align:center}
+    .stats-box{background:#fff;border:1px solid #ccc;border-radius:8px;padding:1rem;margin:1rem 0}
+    @media print {
+      body * { visibility: hidden; }
+      #printContent, #printContent * { visibility: visible; }
+      #printContent { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header><h1>نظام جرد الهواتف</h1></header>
+
+  <nav>
+    <button onclick="showSection('add')">📦 إضافة للمخزن</button>
+    <button onclick="showSection('sell')">💰 بيع جهاز</button>
+    <button onclick="showSection('stats')">📊 الإحصائيات</button>
+  </nav>
+
+  <!-- قسم الإضافة -->
+  <section id="add" class="active">
+    <h2>إضافة جهاز للمخزن</h2>
+    <input type="text" id="name" placeholder="اسم الشركة">
+    <input type="text" id="type" placeholder="النوع">
+    <input type="text" id="ram" placeholder="الرام">
+    <input type="text" id="storage" placeholder="الذاكرة">
+    <input type="number" id="qty" placeholder="الكمية">
+    <button onclick="addPhone()">إضافة</button>
+
+    <table id="stockTable">
+      <thead>
+        <tr>
+          <th>الشركة</th><th>النوع</th><th>الرام</th><th>الذاكرة</th><th>الكمية</th><th>تعديل</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- قسم البيع -->
+  <section id="sell">
+    <h2>بيع جهاز</h2>
+    <input type="text" id="sellName" placeholder="اسم الشركة">
+    <input type="text" id="sellType" placeholder="النوع">
+    <input type="text" id="sellRam" placeholder="الرام">
+    <input type="text" id="sellStorage" placeholder="الذاكرة">
+    <input type="number" id="sellQty" placeholder="الكمية">
+    <button onclick="sellPhone()">بيع</button>
+
+    <table id="salesTable">
+      <thead>
+        <tr>
+          <th>الشركة</th><th>النوع</th><th>الرام</th><th>الذاكرة</th><th>الكمية المباعة</th><th>تعديل</th><th>حذف</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- قسم الإحصائيات -->
+  <section id="stats">
+    <h2>الإحصائيات</h2>
+    <div class="stats-box">
+      <p><strong>📦 عدد أنواع الأجهزة في المخزن:</strong> <span id="totalStock">0</span></p>
+      <p><strong>💰 عدد الأجهزة المباعة:</strong> <span id="totalSold">0</span></p>
+      <p><strong>📈 إجمالي الكمية المتوفرة:</strong> <span id="stockQty">0</span></p>
+    </div>
+    <button onclick="printAndReset()">🧹 تصفير المبيعات والإحصائيات</button>
+  </section>
+
+  <!-- محتوى الطباعة -->
+  <div id="printContent" style="display:none">
+    <h2>تقرير النظام</h2>
+    <p><strong>📅 التاريخ والوقت:</strong> <span id="printDate"></span></p>
+
+    <h3>📦 المخزن</h3>
+    <table id="printStock"></table>
+
+    <h3>💰 المبيعات</h3>
+    <table id="printSales"></table>
+
+    <h3>📊 الإحصائيات</h3>
+    <div id="printStats"></div>
+  </div>
+
+  <script>
+    let storage = JSON.parse(localStorage.getItem("phones")) || [];
+    let sales = JSON.parse(localStorage.getItem("sales")) || [];
+
+    function showSection(id){
+      document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+      if(id==="stats") updateStats();
+      if(id==="add") renderStockTable();
+      if(id==="sell") renderSalesTable();
+    }
+
+    function saveData(){
+      localStorage.setItem("phones", JSON.stringify(storage));
+      localStorage.setItem("sales", JSON.stringify(sales));
+    }
+
+    function addPhone(){
+      const name = document.getElementById("name").value.trim();
+      const type = document.getElementById("type").value.trim();
+      const ram = document.getElementById("ram").value.trim();
+      const storageVal = document.getElementById("storage").value.trim();
+      const qty = parseInt(document.getElementById("qty").value.trim());
+      if(!name||!type||!ram||!storageVal||!qty) return alert("يرجى تعبئة جميع الحقول");
+      const existing = storage.find(p=>p.name==name&&p.type==type&&p.ram==ram&&p.storage==storageVal);
+      if(existing){existing.qty+=qty}else{
+        storage.push({name,type,ram,storage:storageVal,qty});
+      }
+      saveData(); renderStockTable(); updateStats();
+      document.getElementById("name").value = "";
+      document.getElementById("type").value = "";
+      document.getElementById("ram").value = "";
+      document.getElementById("storage").value = "";
+      document.getElementById("qty").value = "";
+    }
+
+    function renderStockTable(){
+      const tbody = stockTable.querySelector("tbody"); 
+      tbody.innerHTML="";
+
+      const grouped = storage.reduce((acc, item) => {
+        if (!acc[item.name]) acc[item.name] = [];
+        acc[item.name].push(item);
+        return acc;
+      }, {});
+
+      Object.keys(grouped).forEach(name => {
+        grouped[name].forEach(p => {
+          tbody.insertAdjacentHTML("beforeend",
+            `<tr>
+              <td>${p.name}</td><td>${p.type}</td><td>${p.ram}</td><td>${p.storage}</td><td>${p.qty}</td>
+              <td><button onclick="editPhone(${storage.indexOf(p)})">تعديل</button></td>
+            </tr>`);
+        });
+      });
+    }
+
+    function editPhone(i){
+      const p = storage[i];
+      document.getElementById("name").value = p.name;
+      document.getElementById("type").value = p.type;
+      document.getElementById("ram").value = p.ram;
+      document.getElementById("storage").value = p.storage;
+      document.getElementById("qty").value = p.qty;
+      storage.splice(i,1);
+      saveData(); renderStockTable(); updateStats();
+    }
+
+    function sellPhone(){
+      const name = document.getElementById("sellName").value.trim();
+      const type = document.getElementById("sellType").value.trim();
+      const ram = document.getElementById("sellRam").value.trim();
+      const storageVal = document.getElementById("sellStorage").value.trim();
+      const qty = parseInt(document.getElementById("sellQty").value.trim());
+      if(!name||!type||!ram||!storageVal||!qty) return alert("يرجى تعبئة جميع الحقول");
+      const item = storage.find(p=>p.name==name&&p.type==type&&p.ram==ram&&p.storage==storageVal);
+      if(!item||item.qty<qty) return alert("الجهاز غير متوفر بالكميات المطلوبة");
+      item.qty -= qty;
+      sales.push({name,type,ram,storage:storageVal,qty});
+      saveData(); renderStockTable(); renderSalesTable(); updateStats();
+      document.getElementById("sellName").value = "";
+      document.getElementById("sellType").value = "";
+      document.getElementById("sellRam").value = "";
+      document.getElementById("sellStorage").value = "";
+      document.getElementById("sellQty").value = "";
+    }
+
+    function renderSalesTable(){
+      const tbody = salesTable.querySelector("tbody"); tbody.innerHTML="";
+      sales.forEach((s,i)=>{
+        tbody.insertAdjacentHTML("beforeend",
+          `<tr>
+            <td>${s.name}</td><td>${s.type}</td><td>${s.ram}</td><td>${s.storage}</td><td>${s.qty}</td>
+            <td><button onclick="editSale(${i})">تعديل</button></td>
+            <td><button onclick="deleteSale(${i})">حذف</button></td>
+          </tr>`);
+      });
+    }
+
+    function editSale(i){
+      const s = sales[i];
+      document.getElementById("sellName").value = s.name;
+      document.getElementById("sellType").value = s.type;
+      document.getElementById("sellRam").value = s.ram;
+      document.getElementById("sellStorage").value = s.storage;
+      document.getElementById("sellQty").value = s.qty;
+      sales.splice(i,1);
+      saveData(); renderSalesTable(); updateStats();
+    }
+
+    function deleteSale(i){
+      const s = sales[i];
+      const item = storage.find(p=>p.name==s.name&&p.type==s.type&&p.ram==s.ram&&p.storage==s.storage);
+      if(item) item.qty += s.qty;
+      sales.splice(i,1);
+      saveData(); renderStockTable(); renderSalesTable(); updateStats();
+    }
+
+    function updateStats(){
+      document.getElementById("totalStock").textContent = storage.length;
+      document.getElementById("totalSold").textContent = sales.reduce((a,c)=>a+c.qty,0);
+      document.getElementById("stockQty").textContent = storage.reduce((a,c)=>a+c.qty,0);
+    }
+
+    function printAndReset(){
+      const date = new Date();
+      document.getElementById("printDate").textContent = date.toLocaleString();
+
+      let stockHTML = `<thead><tr><th>الشركة</th><th>النوع</th><th>الرام</th><th>الذاكرة</th><th>الكمية</th></tr></thead><tbody>`;
+      storage.forEach(p=>{
+        stockHTML += `<tr><td>${p.name}</td><td>${p.type}</td><td>${p.ram}</td><td>${p.storage}</td><td>${p.qty}</td></tr>`;
+      });
+      stockHTML += "</tbody>";
+      document.getElementById("printStock").innerHTML = stockHTML;
+
+      let salesHTML = `<thead><tr><th>الشركة</th><th>النوع</th><th>الرام</th><th>الذاكرة</th><th>الكمية المباعة</th></tr></thead><tbody>`;
+      sales.forEach(s=>{
+        salesHTML += `<tr><td>${s.name}</td><td>${s.type}</td><td>${s.ram}</td><td>${s.storage}</td><td>${s.qty}</td></tr>`;
+      });
+      salesHTML += "</tbody>";
+      document.getElementById("printSales").innerHTML = salesHTML;
+
+      document.getElementById("printStats").innerHTML = `
+        <p><strong>📦 عدد أنواع الأجهزة في المخزن:</strong> ${storage.length}</p>
+        <p><strong>💰 عدد الأجهزة المباعة:</strong> ${sales.reduce((a,c)=>a+c.qty,0)}</p>
+        <p><strong>📈 إجمالي الكمية المتوفرة:</strong> ${storage.reduce((a,c)=>a+c.qty,0)}</p>
+      `;
+
+      document.getElementById("printContent").style.display = "block";
+      window.print();
+      document.getElementById("printContent").style.display = "none";
+
+      sales = [];
+      saveData();
+      renderSalesTable();
+      updateStats();
+      alert("تم طباعة التقرير وتصفير المبيعات");
+    }
+
+    // ✅ إضافة ميزة الاقتراحات في البيع بناءً على المخزن
+    document.getElementById("sellName").addEventListener("input", function () {
+      const input = this.value.trim().toLowerCase();
+      const suggestions = storage.filter(p => p.name.toLowerCase().includes(input));
+
+      let datalist = document.getElementById("nameSuggestions");
+      if (!datalist) {
+        datalist = document.createElement("datalist");
+        datalist.id = "nameSuggestions";
+        document.body.appendChild(datalist);
+        this.setAttribute("list", "nameSuggestions");
+      }
+
+      datalist.innerHTML = "";
+
+      const uniqueSuggestions = [...new Set(suggestions.map(p => `${p.name}|${p.type}|${p.ram}|${p.storage}`))];
+
+      uniqueSuggestions.forEach(entry => {
+        const [name, type, ram, storage] = entry.split("|");
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = `${name} - ${type} - ${ram} - ${storage}`;
+        datalist.appendChild(option);
+      });
+    });
+
+    document.getElementById("sellName").addEventListener("change", function () {
+      const name = this.value.trim().toLowerCase();
+      const match = storage.find(p => p.name.toLowerCase() === name);
+      if (match) {
+        document.getElementById("sellType").value = match.type;
+        document.getElementById("sellRam").value = match.ram;
+        document.getElementById("sellStorage").value = match.storage;
+      }
+    });
+
+    renderStockTable();
+    renderSalesTable();
+    updateStats();
+  </script>
+</body>
+</html>
